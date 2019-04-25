@@ -1,0 +1,4 @@
+data/hispanics-admix-panels.bed filter=lfs diff=lfs merge=lfs -text
+data/hispanics.bed filter=lfs diff=lfs merge=lfs -text
+data/hispanics-admix-panels.bim filter=lfs diff=lfs merge=lfs -text
+data/hispanics.bim filter=lfs diff=lfs merge=lfs -text
