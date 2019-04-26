@@ -233,3 +233,30 @@ rm all_phase3.pgen
 # variant filter
 rm YRI.snplist.zst
 ```
+
+# Add subpopulation labels to FAM files
+
+Although the original TGP PSAM file contains a column for the subpopulation label of every individual, the resulting FAM files in this pipeline lose that information.
+On the other hand, the "Family ID" column (first column) of the FAM file is trivial in these files ("0" for all individuals).
+It makes sense for convenience to store the subpopulation labels in this column instead.
+
+To do this, we use the script `fam_add_pop_from_psam.R` provided in the `scripts/` directory of this repository.
+Note that this R script requires the packages `readr` (available on CRAN) and `genio`.
+The latter is available on GitHub and can be installed by running these commands in an R session:
+```R
+install.packages("devtools") # if needed
+library(devtools)
+install_github("OchoaLab/genio", build_opts = c())
+```
+
+Assuming we remain in the data directory, these commands (back on the unix terminal) generate the new FAM files with the Family ID column containing the subpopulation labels:
+```bash
+Rscript ../scripts/fam_add_pop_from_psam.R \
+    all_phase3.psam hispanics.fam hispanics.NEW.fam
+Rscript ../scripts/fam_add_pop_from_psam.R \
+    all_phase3.psam hispanics-admix-panels.fam hispanics-admix-panels.NEW.fam 
+
+# overwrite after visually inspecting for correctness
+mv hispanics.NEW.fam hispanics.fam
+mv hispanics-admix-panels.NEW.fam hispanics-admix-panels.fam
+```
