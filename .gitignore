@@ -1,4 +1,6 @@
 *~
+# ignore these particular Rmarkdown directories (have cached data, etc)
+hispanics-01-analysis_files/
 
 # History files
 .Rhistory

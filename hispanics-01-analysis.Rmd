@@ -1,0 +1,498 @@
+---
+title: "Analysis of Hispanics in 1000 Genomes data"
+author: "Alejandro Ochoa and John D. Storey"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+In this R markdown file we demonstrate the basic analysis of Hispanic individuals from the 1000 Genomes Project (TGP) presented in our paper "New kinship and FST estimates reveal higher levels of differentiation in the global human population" by Ochoa and Storey.We rely exclusively on the data files provided in this repository (https://github.com/StoreyLab/human_differentiation_analysis).
+
+# R package dependencies
+
+To be able to run this code, you will need the following packages:
+```{R}
+library(BEDMatrix)    # to load genotype matrices
+library(popkin)       # to estimate "population kinship" matrices
+library(genio)        # to parse FAM file
+library(readr)        # to parse admixture proportions table
+library(seriation)    # to automatically order individuals given kinship estimate
+library(RColorBrewer) # for colors
+```
+
+# Estimate the kinship matrix
+
+Load the genotype matrix (smartly, actually doesn't load into memory):
+```{R, cache = TRUE}
+X <- BEDMatrix('data/hispanics', simple_names = TRUE)
+```
+This function from `genio` loads individual annotations (in plink FAM format), including subpopulations.
+```{R}
+fam <- read_fam('data/hispanics')
+```
+
+Now estimate the kinship matrix.
+It doesn't make sense to use the TGP subpopulations here, so we'll ignore them as we estimate the kinship matrix.
+This step takes about 7 minutes.
+```{R, cache = TRUE}
+kinship <- popkin(X)
+```
+
+As a first pass, let's order individuals grouping by subpopulation.
+This code achieves that, using the following custom order:
+```{R}
+# desired order
+# Puerto Ricans, Colombians, Peruvians, Mexican-Americans
+subpop_order <- c('PUR', 'CLM', 'PEL', 'MXL')
+# indexes to reorder individuals
+indexes <- order(match(fam$fam, subpop_order))
+# reorder kinship matrix (both dimensions)
+kinship <- kinship[indexes, indexes]
+# reorder individual annotations (rows only)
+fam <- fam[indexes, ]
+```
+We are ready to visualize the estimated kinship matrix:
+```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
+# set outer margin for axis labels (left and right are non-zero)
+par(oma = c(0, 1.5, 0, 3))
+# set inner margin for subpopulation labels (bottom and left are non-zero), add padding
+par(mar = c(1, 1, 0, 0) + 0.2)
+# now plot!
+plot_popkin(
+    kinship = inbr_diag(kinship),
+    labs = fam$fam
+)
+```
+
+
+# Order individuals using seriation
+
+Here we call the `seriate` function from the package `seriation` to order individuals.
+This function arranges individuals by grouping the most similar closer to each other, and the most dissimilar far from each other.
+In terms of the kinship matrix, this approach will concentrate the largest values on the diagonal and the lowest values farthest from the diagonal.
+
+Here is the function wrapper we will use:
+```{R}
+# returns order for a kinship matrix
+order_seriate <- function(kinship) {
+    # turn similarity (kinship) into dissimilarity (distances)
+    # start by negating
+    distance <- - kinship
+    # shift so minimum value is zero
+    distance <- distance - min(distance)
+    # make distance object, expected as input
+    distance <- as.dist(distance)
+    
+    # perform desired optimization
+    # "ARSA" (anti-Robinson) method
+    seriation_object <- seriate(distance, method = 'ARSA')
+    # the order we want with this other seriation function
+    indexes <- get_order( seriation_object )
+    
+    # reverse order depending on slope
+    # (for consistency)
+    # (every `seriate` run is random and order is reversed often)
+    y <- diag(kinship)[indexes]
+    x <- 1 : length(y)
+    m <- coef(lm(y ~ x))[2] # this is the slope of interest (from linear fit)
+    if (m < 0) { # flip negative slope cases only
+        indexes <- rev( indexes )
+    }
+    
+    # done, return order
+    return( indexes )
+}
+```
+
+Let's apply it to our kinship matrix, reordering everything we have
+```{R, cache = TRUE}
+# get order
+indexes <- order_seriate(kinship)
+# reorder kinship matrix (both dimensions)
+kinship <- kinship[indexes, indexes]
+# reorder individual annotations (rows only)
+fam <- fam[indexes, ]
+```
+Let's plot the new order!
+Since the subpopulation labels are all scrambled, let's not use them now (we will plot them using another method shortly).
+```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
+par(oma = c(0, 1.5, 0, 3))
+# don't need margins if there are no labels
+par(mar = c(0, 0, 0, 0) + 0.2)
+# now plot!
+plot_popkin(
+    kinship = inbr_diag(kinship)
+)
+```
+
+# Rescaling the kinship estimates
+
+Seriation has placed the most unrelated individuals at the extremes of the current order.
+This allows us to get a better estimate of the baseline kinship value to be treated as zero.
+The code below chooses two individuals from one extreme, and two other individuals at the other extreme, and via `rescale_popkin` sets their mean kinship value as the new zero value.
+```{R}
+# first construct dummy populations
+# total number of individuals
+n_ind <- nrow(fam)
+# number of individual in extreme subpopulations
+n_subpop_dummy <- 2
+# most individuals are assigned pop 1
+fam$subpop_dummy <- 1
+# the first extreme population is pop 2
+fam$subpop_dummy[ 1 : n_subpop_dummy ] <- 2
+# the other extreme population is pop 3
+fam$subpop_dummy[ n_ind + 1 - ( 1 : n_subpop_dummy ) ] <- 3
+
+# report IDs of individiuals in these extreme subpopulations
+fam$id[ fam$subpop_dummy == 2 ]
+fam$id[ fam$subpop_dummy == 3 ]
+
+# before rescaling, note that the minimum kinship value was exactly zero
+range( inbr_diag(kinship) )
+# also get FST (to see change later)
+fst( kinship )
+
+# rescale to have a better kinship estimate
+kinship <- rescale_popkin(kinship, subpops = fam$subpop_dummy)
+
+# after rescaling, the minimum kinship value is slightly negative
+# (this is random noise, estimates overall will be less biased now)
+# all values are smaller now
+range( inbr_diag(kinship) )
+# FST got noticeably smaller too
+fst( kinship )
+```
+This plot shows that the kinship matrix did not change except (slightly) in scale:
+```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
+par(oma = c(0, 1.5, 0, 3))
+par(mar = c(0, 0, 0, 0) + 0.2)
+# now plot!
+plot_popkin(
+    kinship = inbr_diag(kinship)
+)
+```
+
+# Colors for geographic and admixture subpopulations
+
+Here we choose colors for two classes of subpopulations: the sampling location labels (PUR, CLM, PEL, MXL) and admixture subpopulations (AFR, EUR, AMR, which will be used later in this document).
+We obtain colors jointly for both classes so that they don't clash and lead to confusion:
+```{R}
+# number of admixture subpopulations
+k_admix <- 3
+# number of geographic subpopulations
+n_subpops <- length(subpop_order)
+# get a joint set of colors that don't clash
+colors_all <- brewer.pal( n_subpops + k_admix, "Set3" )
+# now we split the colors for both classes
+# first set of colors are for the geographic labels
+colors_subpops <- colors_all[ 1 : n_subpops ]
+# the rest are for the admixture subpopulations
+colors_admix <- setdiff(colors_all, colors_subpops)
+```
+
+# Marking subpopulations with colors on the sides
+
+This code assigns to every individual the color of its subpopulation.
+We store the colors in the FAM tibble of individual annotations.
+```{R}
+fam$col <- colors_subpops[match(fam$fam, subpop_order)]
+```
+This function will plot the colors of interest.
+We encode it as a function since it will be reused a few times.
+```{R}
+plot_colors_subpops <- function(colors, y = FALSE) {
+    # number of individuals
+    n <- length(colors)
+    # positions to place colors on, as matrix (what `image` requires)
+    if (y) {
+        # on y-axis it must be a row matrix going from last to first individual
+        x <- rbind( n : 1 )
+    } else {
+        # on x-axis it must be a column matrix going from first to last individual
+        x <- cbind( 1 : n )
+    }
+    # actually plot the image
+    image(x, col = colors, axes = FALSE, useRaster = TRUE)
+}
+```
+Test this plot:
+```{r, fig.width = 6, fig.height = 0.5, fig.align = 'center'}
+# no margins here
+par(mar = c(0, 0, 0, 0) + 0.2)
+# plot x-axis version (y = FALSE)
+plot_colors_subpops( fam$col )
+```
+
+We also need to construct a legend for these colors.
+```{R}
+legend_color_categories <- function(colors, categories, label, cex_label = 1) {
+    # , cex_cats = 1
+    # color legend of subpopulations
+    x <- 1 : length(colors)
+    image(y = x, z = rbind(x), col = colors, xaxt = "n", yaxt = "n")
+    axis(4, at = x, labels = categories, tick = FALSE) # , cex.axis = cex_cats
+    # lastly, add axis label
+    mtext(side = 4, label, line = 2, cex = cex_label)
+}
+```
+Test also, using dimensions that make it look tall (it's going to go on the side):
+```{r, fig.width = 1, fig.height = 2.5, fig.align = 'center'}
+# only right margin must be large, for label
+par(mar = c(0, 0, 0, 3) + 0.2)
+# plot color legend
+legend_color_categories(
+    colors = colors_subpops,
+    categories = subpop_order,
+    label = 'Subpopulation'
+)
+```
+
+
+Now let's incorporate these colors into the kinship matrix figure.
+This is more complicated as we need to define a custom layout:
+```{r, fig.width = 3.7, fig.height = 3, fig.align = 'center'}
+par(oma = c(0, 1.5, 0, 3))
+# zero margins here (plus minimal padding)
+par(mar = c(0, 0, 0, 0) + 0.2)
+# custom layout
+layout(
+    # Panel numbers are matched in comments below.
+    # Main figure (first two rows) is split in two
+    # so each color key takes up half of this figure by height.
+    rbind(
+        c(3, 1, 2),
+        c(3, 1, 5),
+        c(0, 4, 0)
+    ),
+    widths = c(0.05, 1, 0.05),
+    heights = c(0.5, 0.5, 0.05)
+)
+# reduce some labels
+cex_labels <- 0.8
+# now plot!
+# panel 1 is kinship heatmap
+# panel 2 is kinship color key/legend
+plot_popkin(
+    kinship = inbr_diag(kinship),
+    layout_add = FALSE,
+    leg_cex = cex_labels, # shrink to match everything else
+    ylab = ''
+)
+# panel 3: plot y-axis first
+plot_colors_subpops(fam$col, y = TRUE)
+# outer label goes next to y-axis
+mtext('Individuals', side = 2, line = 0.5, xpd = NA, cex = cex_labels)
+# panel 4: then x-axis
+plot_colors_subpops(fam$col)
+# panel 5: color key for subpopulations
+legend_color_categories(
+    colors = colors_subpops,
+    categories = subpop_order,
+    label = 'Subpopulation',
+    cex_label = cex_labels
+)
+```
+
+
+# Admixture analysis
+
+Let's load the admixture proportion estimates we precomputed using the `admixture` software:
+```{R}
+admixture_proportions <- read_table(
+    'data/hispanics-admix-panels.3.Q',
+    col_names = c('A1', 'A2', 'A3'),
+    col_types = 'ddd'
+)
+```
+The `admixture_proportions` is a numeric matrix, where each row is one individual, and each of the three columns is one of the inferred ancestries.
+Note that every row sums to one (up to some the 6th significant figure):
+```{R}
+range( rowSums( admixture_proportions ) )
+```
+The above column names "A1, A2, A3" are temporary, as we do not yet know which ancestry corresponds to which column.
+Let's load the individual annotations to make sense of this data and to map it to our kinship matrix:
+```{R}
+fam_admix <- read_fam('data/hispanics-admix-panels')
+```
+This `fam_admix` table is not the same as the earlier `fam`; the admixture analysis has additional individuals from some reference panels that serve as proxies for the unadmixed source subpopulations:
+```{R}
+# number of individuals per subpopulation in kinship matrix:
+table( fam$fam )
+# number of individuals per subpopulation in admixture analysis:
+table( fam_admix$fam )
+```
+Let's merge the individual IDs and the subpopulation labels with the admixture proportions matrix, so that this information stays linked as we reorder individuals:
+```{R}
+# individual identifiers
+admixture_proportions$id <- fam_admix$id
+# subpopulation labels
+admixture_proportions$subpop <- fam_admix$fam
+```
+Let's use the dominant ancestry component in each of the reference subpopulations (YRI: Yoruba; CHB: Chinese; IBS: Spanish) and assign it a continental label (AFR: Sub-Saharan African; AMR: Native American; EUR: European):
+```{R}
+# codes for TGP subpopulations
+reference_subpops <- c('YRI', 'CHB', 'IBS')
+# codes for inferred continental-level ancestry
+reference_ancestry <- c('AFR', 'AMR', 'EUR')
+# best-matching infered ancestries from `admixture`, to calculate
+inferred_ancestry <- vector('numeric', k_admix)
+# loop through TGP reference subpopulations
+for (i in 1 : k_admix) {
+    # get subpopulation label
+    subpop <- reference_subpops[i]
+    # logical indicators of individuals from this subpopulation
+    indexes <- admixture_proportions$subpop == subpop
+    # extract submatrix for this TGP reference subpopulation
+    # only first 3 columns (actual admixture proportions)
+    # (the other columns are `id` and `subpop`)
+    admixture_proportions_subpops <- admixture_proportions[ indexes, 1:k_admix ]
+    # identify the column with the largest weight, store its index
+    inferred_ancestry[i] <- which.max( colMeans( admixture_proportions_subpops ) )
+}
+# if everything went well, this should be a permutation of 1:3
+stopifnot(
+    sort(inferred_ancestry) == 1 : k_admix
+)
+# `inferred_ancestry` are indexes, use to reorder the admixture proportions
+admixture_proportions[, 1:k_admix ] <- admixture_proportions[, inferred_ancestry ]
+# now that ancestry is determined, overwrite the column names with `reference_ancestry`
+names(admixture_proportions)[ 1:k_admix ] <- reference_ancestry
+```
+
+Now that ancestry has been determined, let's create a plot that verifies the assignments.
+```{r, fig.width = 6, fig.height = 2, fig.align = 'center'}
+# order to group TGP subpopulations
+# this is the desired order
+subpop_order_admix <- c(subpop_order, reference_subpops)
+# indexes to reorder individuals
+indexes <- order(match(admixture_proportions$subpop, subpop_order_admix))
+# reorder rows of `admixture_proportions` only
+admixture_proportions <- admixture_proportions[indexes, ]
+# adjust margins
+par(mar = c(2, 3, 0, 0) + 0.2)
+# main admixture plot
+x <- barplot(
+    t(admixture_proportions[, 1:k_admix]),
+    col = colors_admix,
+    xlab = "",
+    ylab = "",
+    border = NA,
+    main = '',
+    xaxt = 'n',
+    xaxs = 'i',
+    space = 0
+)
+# axis labels
+mtext('Individuals', side = 1, line = 1)
+mtext('Ancestry proportion', side = 2, line = 2)
+# add subpopulation labels and lines using a popkin internal function
+popkin:::print_labels(
+             labs = admixture_proportions$subpop,
+             x = x,
+             doMat = FALSE
+         )
+# add basic color legend
+legend(
+    'right',
+    legend = rev(reference_ancestry),
+    fill = rev(colors_admix),
+    cex = 0.7,
+    bg = 'white'
+)
+```
+
+# Figure combining kinship and admixture data
+
+Now we have all the pieces to create a figure combining the kinship matrix and the inferred admixture proportions.
+First we remove all individuals from the reference panels:
+```{R}
+# identify where the individuals in the kinship matrix
+# (via its FAM table of individual annotations)
+# are in the admixture proportions matrix.
+# Individuals missing in FAM will be removed
+indexes <- match(fam$id, admixture_proportions$id)
+# filter and reorder individuals
+admixture_proportions <- admixture_proportions[indexes, ]
+# sanity check, make sure IDs match
+stopifnot(
+    admixture_proportions$id == fam$id
+)
+# now remove `id` and `subpop` annotations,
+# leaving only the numeric admixture proportions
+admixture_proportions <- admixture_proportions[, 1 : k_admix ]
+```
+Now we plot it.
+The layout becomes even more complex!
+```{r, fig.width = 3.7, fig.height = 4.5, fig.align = 'center'}
+par(oma = c(2, 3, 0, 3))
+# zero margins here (plus minimal padding)
+par(mar = c(0, 0, 0, 0) + 0.2)
+# custom layout
+layout(
+    # Panel numbers are matched in comments below.
+    # Main figure (first two rows) is split in two
+    # so each color key takes up half of this figure by height.
+    rbind(
+        c(3, 1, 2),
+        c(3, 1, 5),
+        c(0, 4, 0),
+        c(0, 6, 7)
+    ),
+    widths = c(0.05, 1, 0.05),
+    heights = c(0.5, 0.5, 0.05, 0.5)
+)
+# reduce some labels
+cex_labels <- 0.8
+# now plot!
+# panel 1 is kinship heatmap
+# panel 2 is kinship color key/legend
+plot_popkin(
+    kinship = inbr_diag(kinship),
+    layout_add = FALSE,
+    leg_cex = cex_labels, # shrink to match everything else
+    ylab = ''
+)
+# panel 3: plot y-axis first
+plot_colors_subpops(fam$col, y = TRUE)
+# outer label goes next to y-axis
+mtext('Individuals', side = 2, line = 0.5, xpd = NA, cex = cex_labels)
+# panel 4: then x-axis
+plot_colors_subpops(fam$col)
+# panel 5: color key for subpopulations
+legend_color_categories(
+    colors = colors_subpops,
+    categories = subpop_order,
+    label = 'Subpopulation',
+    cex_label = cex_labels
+)
+# panel 6: admixture proportions
+barplot(
+    t(admixture_proportions),
+    col = colors_admix,
+    xlab = "",
+    ylab = "",
+    border = NA,
+    main = '',
+    xaxt = 'n',
+    xaxs = 'i',
+    space = 0
+)
+# axis labels
+mtext('Individuals', side = 1, line = 1, cex = cex_labels)
+mtext('Ancestry proportion', side = 2, line = 2, cex = cex_labels)
+# panel 7: color key for admixture analysis
+legend_color_categories(
+    colors = colors_admix,
+    categories = reference_ancestry,
+    label = 'Ancestry',
+    cex_label = cex_labels
+)
+```
+This figure demonstrates that ordering individuals using the kinship matrix only results in a smooth ordering in admixture proportions too!
+These admixture proportions explain the observed kinship matrix very well, in that individuals with greater Native American ancestry share greater kinship compared to individuals with greater European ancestry, while individuals with the greatest Sub-Saharan African ancestry share the lowest kinship values.
+This is all consistent with the well-known serial founder effects that humans experienced in their migrations from Africa to the rest of the world.
