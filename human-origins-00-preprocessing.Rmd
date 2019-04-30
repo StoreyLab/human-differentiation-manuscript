@@ -82,6 +82,7 @@ Instruction can found in the `README` file that is part of the `NearEastPublic.t
 Be sure to request the public data for both the Lazaridis et al. **and** Skoglund et al. publications, as they are provided separately.
 
 The following instructions, applied only to the public data in this document, can be easily applied to the full datasets just by replacing the right file names.
+The "full" versions of these datasets contain the public data as well, so merging ultimately involves two sets of plink BED files, as is the case here for the public data only.
 
 # Convert data to plink BED format
 
@@ -187,11 +188,11 @@ Saami_WGA
 The data so far also has some ancient individuals from the subpopulation `Lapita_Vanuatu`, which we remove by appending that code to the list of families to remove.
 On the terminal:
 ```bash
-echo Lapita_Vanuatu >> rm-fam.txt
+echo Lapita_Vanuatu >> rm_fam.txt
 ```
 Lastly, we also remove the `AA` subpopulation (African Americans), as they are not a native subpopulation.
 ```bash
-echo AA >> rm-fam.txt
+echo AA >> rm_fam.txt
 ```
 
 # Filter into final dataset
@@ -220,9 +221,9 @@ It merges all Gujarati samples (by removing A,B,C,D suffixes):
 perl -p -i -e 's/Gujarati[A-D]/Gujarati/' human_origins_and_pacific_public.fam
 ```
 
-The final dataset has these dimensions:
+The final public dataset on this repository has these dimensions:
 ```bash
 wc -l human_origins_and_pacific_public.{bim,fam}
-# 582835 human_origins_and_pacific_public.bim
-#   2139 human_origins_and_pacific_public.fam
+# 582700 human_origins_and_pacific_public.bim
+#   2124 human_origins_and_pacific_public.fam
 ```
