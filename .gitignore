@@ -1,6 +1,4 @@
 *~
-# ignore these particular Rmarkdown directories (have cached data, etc)
-hispanics-01-analysis_files/
 
 # History files
 .Rhistory
@@ -31,6 +29,8 @@ vignettes/*.pdf
 # knitr and R markdown default cache directories
 /*_cache/
 /cache/
+# temporary figures
+/*_files/
 
 # Temporary files created by R markdown
 *.utf8.md
