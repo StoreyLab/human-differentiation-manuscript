@@ -11,11 +11,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
-In this R markdown file we demonstrate the basic analysis of Hispanic individuals from the 1000 Genomes Project (TGP) presented in our paper "New kinship and FST estimates reveal higher levels of differentiation in the global human population" by Ochoa and Storey.We rely exclusively on the data files provided in this repository (https://github.com/StoreyLab/human_differentiation_analysis).
+In this R markdown file we demonstrate the basic analysis of Hispanic individuals from the 1000 Genomes Project (TGP) presented in our paper "New kinship and FST estimates reveal higher levels of differentiation in the global human population" by Ochoa and Storey.
+We rely exclusively on the data files provided in this repository (https://github.com/StoreyLab/human_differentiation_analysis).
 
 # R package dependencies
 
-To be able to run this code, you will need the following packages:
+To run this code, you will need the following packages:
 ```{R}
 library(BEDMatrix)    # to load genotype matrices
 library(popkin)       # to estimate "population kinship" matrices
