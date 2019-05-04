@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # Introduction
 
 In this R markdown file we demonstrate the basic analysis of Human Origins dataset presented in our paper "New kinship and FST estimates reveal higher levels of differentiation in the global human population" by Ochoa and Storey.
-We rely exclusively on the data files provided in this repository (https://github.com/StoreyLab/human_differentiation_analysis), which are the public subset of Human Origins and the Pacific datasets.
+The analysis presented here relies exclusively on the data files provided in this repository (https://github.com/StoreyLab/human_differentiation_analysis), which are the public subset of Human Origins and Pacific datasets.
 
 # R package dependencies
 
@@ -22,6 +22,8 @@ library(BEDMatrix)    # to load genotype matrices
 library(popkin)       # to estimate "population kinship" matrices
 library(genio)        # to parse FAM file
 library(readr)        # to read additional tables
+library(tibble)       # to create tables
+library(dplyr)        # for sanity checks
 library(RColorBrewer) # for colors
 ```
 
@@ -113,7 +115,7 @@ plot_popkin(
 ```
 Compared to the full dataset, this version limited to the public data has very few samples from `SAfrica` and `Oceania`.
 
-# Weights and FST
+# Weights to balance subpopulations and sub-subpopulations
 
 This function calculates weights for individuals such that:
 
@@ -140,11 +142,41 @@ get_weights_human_origins <- function(fam, info) {
 }
 # apply function
 weights <- get_weights_human_origins(fam, info)
+
+# sanity checks
+
+# do the weights sum to one?  Yes!
+sum( weights )
+
+# next steps are best performed on a tibble
+weights_tibble <- tibble(
+    weight = as.numeric( weights ),
+    subpop = fam$subpop,
+    subsubpop = fam$fam
+)
+
+# inspect
+weights_tibble
+
+# are subpopulations weighed equally?  Also yes!
+weights_tibble %>%
+    group_by( subpop ) %>%
+    summarize(sum = sum(weight))
+
+# lastly, the sub-subpopulations are weighed equally within their subpopulation.
+# We test that with 'Americas' only, for brevity:
+weights_tibble %>%
+    filter( subpop == 'Americas' ) %>%
+    group_by( subsubpop ) %>%
+    summarize(sum = sum(weight))
 ```
 
-This is the kinship estimate we obtain:
+# FST estimate
+
+This is the FST estimate we obtain, which is made more robust by using the weights we previously calculated to balance subpopulations and sub-subpopulations:
 ```{R}
 fst_estimate <- fst( kinship, weights )
+
 # inspect
 fst_estimate
 ```
@@ -154,59 +186,66 @@ The value we estimated in the publication, using the full dataset, was 0.260.
 
 # Density of inbreeding coefficients
 
-TODO: code needs to be cleaned up!
+This code plots density curves of inbreeding coefficients for each subpopulation in a different color:
 
-```{R}
-fstTitle <- expression(bold(paste(F[ST], ' estimates')))
-fstVals <- fst_estimate
-fstMethods <- "New"
-fstLtys <- 1
-fstCols <- 'black'
+```{r, fig.width = 7, fig.height = 3, fig.align = 'center'}
+subpops <- unique( info$subpop )
+# color palette for subpopulations
+colors_subpops <- rev(brewer.pal(length(subpops), 'Spectral'))
 
-subpops <- unique(info$subpop)
-i2subpop <- fam$subpop # subpopulation assignments
-cols <- rev(brewer.pal(length(subpops), 'Spectral')) # nice palette for subpopulations # matches pallete in maps (MapAlleleFreq2.R), but doesn't do as many checks
-
-# figure out figure ranges
+# extract inbreeding vector
 inbrs <- inbr( kinship )
-myXlim <- range(0, inbrs)
-myYlim <- 0 # will grow below
-
-# collect densities of interest
-sp2d <- list() # maps each subpopulation to its inbreeding density
-for (sp in subpops) {
-    is <- i2subpop == sp # filter of data
-    inbri <- inbrs[is] # data to make density of
-    wi <- weights[is] # get subset weights too
-    wi <- wi/sum(wi) # renormalize when filters are done!
+# initialize y max, will grow below
+y_max <- 0
+# collect densities of interest.
+# Complicated because samples are weighed to balance sub-subpopulations
+# within each subpopulation
+subpop_to_density <- list()
+for (subpop in subpops) {
+    # filter of data
+    indexes <- fam$subpop == subpop
+    # get subset weights too
+    weights_subpop <- weights[indexes] 
+    # renormalize when filters are done!
+    weights_subpop <- weights_subpop / sum(weights_subpop) 
     # estimate density using these weights
-    di <- density( inbri, weights = wi )
-    sp2d[[sp]] <- di
-    myYlim <- range(myYlim, di$y) # grow if needed
+    density_subpop <- density( inbrs[indexes], weights = weights_subpop )
+    # add to list of densities
+    subpop_to_density[[subpop]] <- density_subpop
+    # grow y max as needed
+    y_max <- max(y_max, density_subpop$y)
 }
 
-lwdBgd <- 3
+# shrink default margins
+par( mar = c(4, 4, 0, 0) )
 
-par(mar = c(2.8, 2.7, 0, 0) )
-par(lab = c(5, 3, 7))
-plot(NA, xlim=myXlim, ylim=myYlim, type='n', xlab='Inbreeding Coefficient', ylab='Density')
+# initialize plotting region
+plot(
+    NA,
+    xlim = range(0, inbrs),
+    ylim = c(0, y_max),
+    xlab = 'Inbreeding Coefficient',
+    ylab = 'Density'
+)
+
 # add each subpopulation density
-for (sp in subpops) {
-    lines(sp2d[[sp]], lwd=lwdBgd) # first pass: black and thicker
+for (subpop in rev(subpops)) {
+    # get color for this subpopulation
+    color_subpop <- colors_subpops[match(subpop, subpops)]
+    # plot density
+    lines( subpop_to_density[[subpop]], col = color_subpop )
 }
-for (sp in rev(subpops)) {
-    lines(sp2d[[sp]], col=cols[match(sp, subpops)])
-}
-# add each Fst estimate
-for (i in 1:length(fstVals)) {
-    abline(v=fstVals[i], lty=fstLtys[i], col=fstCols[i])
-}
-# legends
-cexLeg <- 0.7
-myLegW <- max(strwidth(subpops, font=2, cex=cexLeg)) # ensure that things work when text is bold!
-legend('topright', subpops, title='', lty=1, col='black', cex=cexLeg, text.width=myLegW, bty='n', lwd=lwdBgd, text.col='white') # first pass: black and thicker
-legend('topright', subpops, title='Subpopulations', lty=1, col=cols, cex=cexLeg, text.width=myLegW, bty='n')
-myLegW2 <- max(strwidth(fstMethods, font=2, cex=cexLeg)) # ensure that things work when text is bold!
-legend('topright', fstMethods, title=fstTitle, lty=fstLtys, col=fstCols, cex=cexLeg, text.width=(2*myLegW+myLegW2), bty='n', title.adj=0.1)
 
+# add new Fst estimate (dashed line)
+abline(v = fst_estimate, lty = 2)
+
+# legend
+legend(
+    'topright',
+    subpops,
+    title = 'Subpopulations',
+    lty = 1,
+    col = colors_subpops,
+    cex = 0.7
+)
 ```
