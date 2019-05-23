@@ -56,6 +56,8 @@ This code achieves that, using the following custom order:
 subpop_order <- c('PUR', 'CLM', 'PEL', 'MXL')
 # indexes to reorder individuals
 indexes <- order(match(fam$fam, subpop_order))
+# keep a copy of fam in the original order (used by FST estimators later)
+fam_orig <- fam
 # reorder kinship matrix (both dimensions)
 kinship <- kinship[indexes, indexes]
 # reorder individual annotations (rows only)
@@ -511,7 +513,7 @@ kinship_standard <- kinship_std(X, mean_of_ratios = TRUE)
 ```
 
 Next we reorder individuals to match the kinship matrix estimated earlier with `popkin` and ordered using `seriation`.
-Both kinship matrices have individual IDs stored in the row and colum names, which we use for sorting.
+Both kinship matrices have individual IDs stored in the row and column names, which we use for sorting.
 
 ```{R}
 # indexes to reorder individuals
@@ -556,15 +558,23 @@ plot_popkin(kinship_standard_copy)
 The many negative values, distortions along the diagonal and around the edges are clearly visible here.
 This estimate does not agree with the African Origins model of serial founder effects, which would assign individuals with greater Sub-Saharan African ancestry the lowest kinship, unlike this estimate.
 
-# FST comparisons
+# Comparison to existing FST estimators
 
 Here we compare the FST estimated by `popkin` to that of the Weir-Cockerham estimator (Weir and Cockerham 1984) and the "Hudson" estimator (Bhatia *et al.* 2013) generalized to more than two subpopulations in our work (Ochoa and Storey 2016).
 
+The genotype matrix `X` is in the original order for individuals, but the individual annotations table `fam` was reordered (along with the kinship matrix) using seriation.
+Below we use `fam_orig` instead, which is the same as `fam` but in the original order.
+
 ```{R, cache = TRUE}
+# make sure that X and fam_orig agree
+stopifnot(
+    fam_orig$id == rownames(X)
+)
+
 # compute and store the values
 Fst_popkin <- fst( kinship )
-Fst_wc <- fst_wc( X, labs = fam$fam )$fst
-Fst_hudson_k <- fst_hudson_k( X, labs = fam$fam )$fst
+Fst_wc <- fst_wc( X, labs = fam_orig$fam )$fst
+Fst_hudson_k <- fst_hudson_k( X, labs = fam_orig$fam )$fst
 
 # inspect them
 Fst_popkin
