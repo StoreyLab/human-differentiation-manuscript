@@ -14,12 +14,16 @@ knitr::opts_chunk$set(echo = TRUE)
 In this R markdown file we demonstrate the basic analysis of Hispanic individuals from the 1000 Genomes Project (TGP) presented in our paper "New kinship and FST estimates reveal higher levels of differentiation in the global human population" by Ochoa and Storey.
 We rely exclusively on the data files provided in this repository (https://github.com/StoreyLab/human_differentiation_analysis).
 
+This vignette takes about 18 minutes to compile on a single thread with a 3.6G processor and 31G of memory.
+The slowest steps are estimation of two kinship matrices (our new `popkin` method, and the existing Standard Kinship formula), and the two existing FST methods (Weir-Cockerham and Hudson K).
+
 # R package dependencies
 
 To run this code, you will need the following packages:
 ```{R}
 library(BEDMatrix)    # to load genotype matrices
 library(popkin)       # to estimate "population kinship" matrices
+library(popkinsuppl)  # implements competing methods, available on OchoaLab GitHub
 library(genio)        # to parse FAM file
 library(readr)        # to parse admixture proportions table
 library(seriation)    # to automatically order individuals given kinship estimate
@@ -232,11 +236,10 @@ plot_colors_subpops( fam$col )
 We also need to construct a legend for these colors.
 ```{R}
 legend_color_categories <- function(colors, categories, label, cex_label = 1) {
-    # , cex_cats = 1
     # color legend of subpopulations
     x <- 1 : length(colors)
     image(y = x, z = rbind(x), col = colors, xaxt = "n", yaxt = "n")
-    axis(4, at = x, labels = categories, tick = FALSE) # , cex.axis = cex_cats
+    axis(4, at = x, labels = categories, tick = FALSE)
     # lastly, add axis label
     mtext(side = 4, label, line = 2, cex = cex_label)
 }
@@ -497,3 +500,82 @@ legend_color_categories(
 This figure demonstrates that ordering individuals using the kinship matrix only results in a smooth ordering in admixture proportions too!
 These admixture proportions explain the observed kinship matrix very well, in that individuals with greater Native American ancestry share greater kinship compared to individuals with greater European ancestry, while individuals with the greatest Sub-Saharan African ancestry share the lowest kinship values.
 This is all consistent with the well-known serial founder effects that humans experienced in their migrations from Africa to the rest of the world.
+
+# Standard Kinship estimate
+
+We use the `kinship_std` function from the `popkinsuppl` package, which also works on `BEDMatrix` objects and controls memory just like `popkin`.
+The `mean_of_ratios = TRUE` option ensures that we use the most common formulation of this estimator.
+
+```{R, cache = TRUE}
+kinship_standard <- kinship_std(X, mean_of_ratios = TRUE)
+```
+
+Next we reorder individuals to match the kinship matrix estimated earlier with `popkin` and ordered using `seriation`.
+Both kinship matrices have individual IDs stored in the row and colum names, which we use for sorting.
+
+```{R}
+# indexes to reorder individuals
+indexes <- match(rownames(kinship), rownames(kinship_standard))
+# apply reordering to both dimensions
+kinship_standard <- kinship_standard[ indexes, indexes ]
+# sanity check to make sure it was done correctly
+stopifnot( rownames(kinship_standard) == rownames(kinship) )
+# transform diagonal to have inbreeding values
+# make a copy of the matrix, so we retain the original
+kinship_standard_copy <- inbr_diag(kinship_standard)
+```
+
+Now we plot this kinship matrix estimate.
+
+
+```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
+par(oma = c(0, 1.5, 0, 3))
+par(mar = c(0, 0, 0, 0) + 0.2)
+plot_popkin(kinship_standard_copy)
+```
+
+The biases along the diagonal are so extreme that they make everything else look too small.
+Note in the color key above that the most extreme values go higher than 4!
+Since the diagonal is the minority of the data, we cap using quantiles of the overall data.
+
+```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
+# cap the estimate to this percentile to maximize dynamic range
+alpha <- 0.01
+# high cap
+cap_hi <- quantile(kinship_standard_copy, probs = 1 - alpha)
+# low cap
+cap_lo <- quantile(kinship_standard_copy, probs = alpha)
+# apply caps to the copy only
+kinship_standard_copy[kinship_standard_copy > cap_hi] <- cap_hi
+kinship_standard_copy[kinship_standard_copy < cap_lo] <- cap_lo
+# plot again
+par(oma = c(0, 1.5, 0, 3))
+par(mar = c(0, 0, 0, 0) + 0.2)
+plot_popkin(kinship_standard_copy)
+```
+The many negative values, distortions along the diagonal and around the edges are clearly visible here.
+This estimate does not agree with the African Origins model of serial founder effects, which would assign individuals with greater Sub-Saharan African ancestry the lowest kinship, unlike this estimate.
+
+# FST comparisons
+
+Here we compare the FST estimated by `popkin` to that of the Weir-Cockerham estimator (Weir and Cockerham 1984) and the "Hudson" estimator (Bhatia *et al.* 2013) generalized to more than two subpopulations in our work (Ochoa and Storey 2016).
+
+```{R, cache = TRUE}
+# compute and store the values
+Fst_popkin <- fst( kinship )
+Fst_wc <- fst_wc( X, labs = fam$fam )$fst
+Fst_hudson_k <- fst_hudson_k( X, labs = fam$fam )$fst
+
+# inspect them
+Fst_popkin
+Fst_wc
+Fst_hudson_k
+```
+
+You can above below that our FST estimate is large, and matches the overall FST in Human Origins (see its vignette).
+
+The WC and Hudson K estimators give much smaller values, which are not coherent with the genetic diversity of Hispanics due to admixture from three continental subpopulations.
+The labels both of these methods used are the subpopulation labels (PUR, CLM, PEL, MXL), which identify the location of the individuals but does not correspond well with genetic ancestry.
+It is easy to see, given our earlier kinship and admixture analysis, that these labels do not yield independently-evolving subpopulations (as is required for WC and Hudson K to be correct).
+Moreover, the earlier kinship and admixture analysis further show that there are no independent subpopulations, so this data is not suitable for FST estimation using the existing approaches.
+In other words, it is not simply that the labels used were not appropriate, but rather no appropriate labels exist that can possibly yield independent subpopulations in this data.
