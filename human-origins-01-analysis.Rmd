@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # Introduction
 
 In this R markdown file we demonstrate the basic analysis of Human Origins dataset presented in our paper "New kinship and FST estimates reveal higher levels of differentiation in the global human population" by Ochoa and Storey.
-The analysis presented here relies exclusively on the data files provided in this repository (https://github.com/StoreyLab/human_differentiation_analysis), which are the public subset of Human Origins and Pacific datasets.
+The analysis presented here relies exclusively on the data files provided in this repository (https://github.com/StoreyLab/human-differentiation-manuscript), which are the public subset of Human Origins and Pacific datasets.
 
 This vignette takes about 8 minutes to compile on a single thread with a 3.6G processor and 31G of memory.
 The slowest steps are estimation of two kinship matrices (our new `popkin` method, and the existing Standard Kinship formula), and the two existing FST methods (Weir-Cockerham and Hudson K).

@@ -11,7 +11,7 @@ This document has two goals:
 
 - To explain how the full Human Origins and Pacific datasets (public and non-public) were processed and merged.
 - To construct a version of this dataset consisting of public data only, for the community to independently validate our conclusions.
-  The following files are the result, and are available as part of this repository (https://github.com/StoreyLab/human_differentiation_analysis):
+  The following files are the result, and are available as part of this repository (https://github.com/StoreyLab/human-differentiation-manuscript):
 ```
 data/human_origins_and_pacific_public.bed
 data/human_origins_and_pacific_public.bim
