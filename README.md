@@ -1,6 +1,20 @@
 # Human differentiation analysis
 
-Details on the data analysis for "New kinship and FST estimates reveal higher levels of differentiation in the global human population" by Ochoa and Storey.
+Details on the data analysis for two parallel publications:
+
+- ["New kinship and FST estimates reveal higher levels of differentiation in the global human population" by Ochoa and Storey](https://doi.org/10.1101/653279).
+  - [human-origins-00-preprocessing.pdf](human-origins-00-preprocessing.pdf): 
+    Pre-processing the raw Human Origins data to obtain the files under [data/](data/)
+  - [human-origins-01-analysis.pdf](human-origins-01-analysis.pdf): 
+    Our analysis of the Human Origins data available under [data/](data/).
+  - [hispanics-00-preprocessing.pdf](hispanics-00-preprocessing.pdf): 
+    Pre-processing the raw 1000 Genomes data to obtain the files under [data/](data/)
+  - [hispanics-01-analysis.pdf](hispanics-01-analysis.pdf): 
+    Our analysis of the Hispanic individuals in 1000 Genomes data available under [data/](data/).
+- ["FST and kinship for arbitrary population structures II: Method of moments estimators" by Ochoa and Storey](https://doi.org/10.1101/083923).
+  - [simulations-analysis.pdf](simulations-analysis.pdf):
+    Our analysis of simulated genotype data (randomly generated inside the vignette using the `bnpsd` package).
+	Considers independent subpopulations (the classical FST setting) and differentially-admixed individuals (a complex population structure only our approach handles correctly).
 
 ## Cloning this repository - Large File Storage
 
