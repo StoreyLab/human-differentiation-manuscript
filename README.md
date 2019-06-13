@@ -16,10 +16,12 @@ Details on the data analysis for two parallel publications:
     Our analysis of simulated genotype data (randomly generated inside the vignette using the `bnpsd` package).
 	Considers independent subpopulations (the classical FST setting) and differentially-admixed individuals (a complex population structure only our approach handles correctly).
 
-## Cloning this repository - Large File Storage
+## BED and BIM files on Large File Storage
 
-This repository contains very large files stored on GitHub's "Large File Storage", which means that regular `git` commands like `git clone` will not download these large files unless the `git-lfs` extension is installed.
+This repository contains very large files (BED and BIM extensions) stored on GitHub's "Large File Storage", which means that regular `git` commands like `git clone` will not download these large files unless the `git-lfs` extension is installed.
 After cloning, if the desired files are still missing (small files with the same paths are merely links), you may need to run `git lfs pull` to retrieve these large files.
 
 See https://git-lfs.github.com/ for more information.
 
+If you have any problems downlading this data, a copy of the entire `data/` subdirectory is also available here:
+http://viiia.org/human-differentiation-manuscript-data.zip
