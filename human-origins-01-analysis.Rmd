@@ -2,7 +2,9 @@
 title: "Analysis of Human Origins (plus Pacific) data"
 author: "Alejandro Ochoa and John D. Storey"
 date: "`r Sys.Date()`"
-output: pdf_document
+output:
+  pdf_document:
+    fig_crop: false
 ---
 
 ```{r setup, include = FALSE}
@@ -101,17 +103,11 @@ One slight difference is that these values are not capped (in the publication th
 ```{r, fig.width = 7, fig.height = 6, fig.align = 'center'}
 # line position for outer labels
 line <- 3
-# inner margins
-par(mar = c(0, 0, 0, 0) + 0.2)
-# outer margins
-par(oma = c(line + 2.2, line + 3.2, 0, 3))
 
 # main plot with all labeling bells and whistles
 plot_popkin(
     # plot inbreeding along diagonal
     kinship = inbr_diag( kinship ),
-    # leave a lot of space for labels
-    ylab_line = line + 2,
     # two levels of labels
     labs = cbind(fam$fam, fam$subpop),
     labs_cex = c(0.25, 0.6),
@@ -119,7 +115,9 @@ plot_popkin(
     labs_line = c(1, line),
     labs_lwd = c(0.1, 0.5),
     labs_sep = c(FALSE, TRUE),
-    labs_even = c(TRUE, FALSE)
+    labs_even = c(TRUE, FALSE),
+    leg_width = 0.2,
+    mar = line + 2.2
 )
 ```
 Compared to the full dataset, this version limited to the public data has very few samples from `SAfrica` and `Oceania`.
@@ -152,18 +150,17 @@ Now we plot this kinship matrix estimate.
 
 ```{r, fig.width = 7, fig.height = 6, fig.align = 'center'}
 line <- 3
-par(mar = c(0, 0, 0, 0) + 0.2)
-par(oma = c(line + 2.2, line + 3.2, 0, 3))
 plot_popkin(
     kinship = kinship_standard_copy,
-    ylab_line = line + 2,
     labs = cbind(fam$fam, fam$subpop),
     labs_cex = c(0.25, 0.6),
     labs_las = 2,
     labs_line = c(1, line),
     labs_lwd = c(0.1, 0.5),
     labs_sep = c(FALSE, TRUE),
-    labs_even = c(TRUE, FALSE)
+    labs_even = c(TRUE, FALSE),
+    leg_width = 0.2,
+    mar = line + 2.2
 )
 ```
 
@@ -187,18 +184,17 @@ Now we plot the capped version:
 
 ```{r, fig.width = 7, fig.height = 6, fig.align = 'center'}
 line <- 3
-par(mar = c(0, 0, 0, 0) + 0.2)
-par(oma = c(line + 2.2, line + 3.2, 0, 3))
 plot_popkin(
     kinship = kinship_standard_copy,
-    ylab_line = line + 2,
     labs = cbind(fam$fam, fam$subpop),
     labs_cex = c(0.25, 0.6),
     labs_las = 2,
     labs_line = c(1, line),
     labs_lwd = c(0.1, 0.5),
     labs_sep = c(FALSE, TRUE),
-    labs_even = c(TRUE, FALSE)
+    labs_even = c(TRUE, FALSE),
+    leg_width = 0.2,
+    mar = line + 2.2
 )
 ```
 The many negative values and distortions are clearly visible here.

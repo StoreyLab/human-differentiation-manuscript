@@ -2,12 +2,10 @@
 title: "Analysis of Hispanics in 1000 Genomes data"
 author: "Alejandro Ochoa and John D. Storey"
 date: "`r Sys.Date()`"
-output: pdf_document
+output:
+  pdf_document:
+    fig_crop: false
 ---
-
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 # Introduction
 
@@ -65,14 +63,12 @@ fam <- fam[indexes, ]
 ```
 We are ready to visualize the estimated kinship matrix:
 ```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
-# set outer margin for axis labels (left and right are non-zero)
-par(oma = c(0, 1.5, 0, 3))
-# set inner margin for subpopulation labels (bottom and left are non-zero), add padding
-par(mar = c(1, 1, 0, 0) + 0.2)
 # now plot!
 plot_popkin(
     kinship = inbr_diag(kinship),
-    labs = fam$fam
+    labs = fam$fam,
+    # set inner margin for subpopulation labels
+    mar = 1
 )
 ```
 
@@ -128,12 +124,11 @@ fam <- fam[indexes, ]
 Let's plot the new order!
 Since the subpopulation labels are all scrambled, let's not use them now (we will plot them using another method shortly).
 ```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
-par(oma = c(0, 1.5, 0, 3))
-# don't need margins if there are no labels
-par(mar = c(0, 0, 0, 0) + 0.2)
 # now plot!
 plot_popkin(
-    kinship = inbr_diag(kinship)
+    kinship = inbr_diag(kinship),
+    # don't need margins if there are no labels
+    mar = 0
 )
 ```
 
@@ -176,11 +171,9 @@ fst( kinship )
 ```
 This plot shows that the kinship matrix did not change except (slightly) in scale:
 ```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
-par(oma = c(0, 1.5, 0, 3))
-par(mar = c(0, 0, 0, 0) + 0.2)
-# now plot!
 plot_popkin(
-    kinship = inbr_diag(kinship)
+    kinship = inbr_diag(kinship),
+    mar = 0
 )
 ```
 
@@ -258,11 +251,10 @@ legend_color_categories(
 )
 ```
 
-
 Now let's incorporate these colors into the kinship matrix figure.
 This is more complicated as we need to define a custom layout:
 ```{r, fig.width = 3.7, fig.height = 3, fig.align = 'center'}
-par(oma = c(0, 1.5, 0, 3))
+# specify all margins here explicitly for the non-plot_popkin panels
 # zero margins here (plus minimal padding)
 par(mar = c(0, 0, 0, 0) + 0.2)
 # custom layout
@@ -275,7 +267,7 @@ layout(
         c(3, 1, 5),
         c(0, 4, 0)
     ),
-    widths = c(0.05, 1, 0.05),
+    widths = c(0.05, 1, 0.2),
     heights = c(0.5, 0.5, 0.05)
 )
 # reduce some labels
@@ -296,6 +288,7 @@ mtext('Individuals', side = 2, line = 0.5, xpd = NA, cex = cex_labels)
 # panel 4: then x-axis
 plot_colors_subpops(fam$col)
 # panel 5: color key for subpopulations
+par(mar = c(0, 0, 0, 3) + 0.2)
 legend_color_categories(
     colors = colors_subpops,
     categories = subpop_order,
@@ -435,7 +428,7 @@ admixture_proportions <- admixture_proportions[, 1 : k_admix ]
 Now we plot it.
 The layout becomes even more complex!
 ```{r, fig.width = 3.7, fig.height = 4.5, fig.align = 'center'}
-par(oma = c(2, 3, 0, 3))
+par(oma = c(2, 3, 0, 0))
 # zero margins here (plus minimal padding)
 par(mar = c(0, 0, 0, 0) + 0.2)
 # custom layout
@@ -449,7 +442,7 @@ layout(
         c(0, 4, 0),
         c(0, 6, 7)
     ),
-    widths = c(0.05, 1, 0.05),
+    widths = c(0.05, 1, 0.2),
     heights = c(0.5, 0.5, 0.05, 0.5)
 )
 # reduce some labels
@@ -461,7 +454,8 @@ plot_popkin(
     kinship = inbr_diag(kinship),
     layout_add = FALSE,
     leg_cex = cex_labels, # shrink to match everything else
-    ylab = ''
+    ylab = '',
+    oma = NULL # don't alter outer margin
 )
 # panel 3: plot y-axis first
 plot_colors_subpops(fam$col, y = TRUE)
@@ -470,6 +464,7 @@ mtext('Individuals', side = 2, line = 0.5, xpd = NA, cex = cex_labels)
 # panel 4: then x-axis
 plot_colors_subpops(fam$col)
 # panel 5: color key for subpopulations
+par(mar = c(0, 0, 0, 3) + 0.2)
 legend_color_categories(
     colors = colors_subpops,
     categories = subpop_order,
@@ -477,6 +472,7 @@ legend_color_categories(
     cex_label = cex_labels
 )
 # panel 6: admixture proportions
+par(mar = c(0, 0, 0, 0) + 0.2)
 barplot(
     t(admixture_proportions),
     col = colors_admix,
@@ -492,6 +488,7 @@ barplot(
 mtext('Individuals', side = 1, line = 1, cex = cex_labels)
 mtext('Ancestry proportion', side = 2, line = 2, cex = cex_labels)
 # panel 7: color key for admixture analysis
+par(mar = c(0, 0, 0, 3) + 0.2)
 legend_color_categories(
     colors = colors_admix,
     categories = reference_ancestry,
@@ -531,9 +528,10 @@ Now we plot this kinship matrix estimate.
 
 
 ```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
-par(oma = c(0, 1.5, 0, 3))
-par(mar = c(0, 0, 0, 0) + 0.2)
-plot_popkin(kinship_standard_copy)
+plot_popkin(
+    kinship_standard_copy,
+    mar = 0
+)
 ```
 
 The biases along the diagonal are so extreme that they make everything else look too small.
@@ -551,9 +549,10 @@ cap_lo <- quantile(kinship_standard_copy, probs = alpha)
 kinship_standard_copy[kinship_standard_copy > cap_hi] <- cap_hi
 kinship_standard_copy[kinship_standard_copy < cap_lo] <- cap_lo
 # plot again
-par(oma = c(0, 1.5, 0, 3))
-par(mar = c(0, 0, 0, 0) + 0.2)
-plot_popkin(kinship_standard_copy)
+plot_popkin(
+    kinship_standard_copy,
+    mar = 0
+)
 ```
 The many negative values, distortions along the diagonal and around the edges are clearly visible here.
 This estimate does not agree with the African Origins model of serial founder effects, which would assign individuals with greater Sub-Saharan African ancestry the lowest kinship, unlike this estimate.

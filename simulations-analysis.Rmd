@@ -2,7 +2,9 @@
 title: "Analysis of simulated data: independent subpopulations and admixture population structures"
 author: "Alejandro Ochoa and John D. Storey"
 date: "`r Sys.Date()`"
-output: pdf_document
+output:
+  pdf_document:
+    fig_crop: false
 ---
 
 ```{r setup, include = FALSE}
@@ -135,11 +137,11 @@ We use the `plot_popkin` function from `popkin` to visualize the coancestry matr
 The coancestry matrix is just like a kinship matrix, but already contains inbreeding coefficients along the diagonal.
 Therefore, although `inbr_diag` (from `popkin`) is usually needed for kinship matrices, it is not needed here.
 ```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
-# set outer margins
-par(oma = c(0, 1.5, 0, 3))
-# don't need inner margins if there are no labels
-par(mar = c(0, 0, 0, 0) + 0.2)
-plot_popkin( coancestry )
+plot_popkin(
+    coancestry,
+    # don't need inner margins if there are no labels
+    mar = 0
+)
 ```
 
 ### Draw genotypes
@@ -197,14 +199,13 @@ kinship_names <- c(
     'Std kinship ROM',
     'Std kinship MOR'
 )
-# set reasonable margins
-par(oma = c(0, 1.5, 0, 3))
-par(mar = c(0, 0, 2, 0) + 0.2)
 # plot!
 plot_popkin(
     kinship = inbr_diag( kinship_list ),
     titles = kinship_names,
-    layout_rows = 2
+    layout_rows = 2,
+    # second value is top margin, for titles
+    mar = c(0, 2)
 )
 ```
 
@@ -378,9 +379,10 @@ coancestry <- coanc_admix(admix_proportions, inbr_subpops)
 ```
 We use the `plot_popkin` function from `popkin` to visualize the coancestry matrix (see earlier notes for more info).
 ```{r, fig.width = 4.2, fig.height = 3, fig.align = 'center'}
-par(oma = c(0, 1.5, 0, 3))
-par(mar = c(0, 0, 0, 0) + 0.2)
-plot_popkin( coancestry )
+plot_popkin(
+    coancestry,
+    mar = 0
+)
 ```
 
 ### Draw genotypes
@@ -472,14 +474,12 @@ kinship_names <- c(
     'Std kinship ROM',
     'Std kinship MOR'
 )
-# set reasonable margins
-par(oma = c(0, 1.5, 0, 3))
-par(mar = c(0, 0, 2, 0) + 0.2)
 # plot!
 plot_popkin(
     kinship = inbr_diag( kinship_list ),
     titles = kinship_names,
-    layout_rows = 2
+    layout_rows = 2,
+    mar = c(0, 2)
 )
 ```
 
